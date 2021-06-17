@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<link rel="stylesheet" href="./style/style.css" />
+		<title>Smooth Particle Hydrodynamics</title>
+	</head>
+	<body>
+		<div class="canvasWrapper">
+			<canvas id="particleCanvas" width="600" height="600"></canvas>
+		</div>
+
+		<h1 class="pageTitle">Smooth Particle Hydrodynamics</h1>
+		<div class="descriptionWrapper">
+			<h2 class="sectionTitle">What is Smooth Particle Hydrodynamics (SPH)?</h2>
+			<p class="sectionText">
+				Per Wikipedia, "Smoothed-particle hydrodynamics (SPH) is a computational
+				method used for simulating the mechanics of continuum media, such as
+				solid mechanics and fluid flows. It was developed by Gingold and
+				Monaghan [2] and Lucy[3] in 1977, initially for astrophysical problems."
+			</p>
+			<p class="sectionText">
+				CFD, of the sort typically encountered in the engineering domain,
+				typically makes use of methods that discretize the fluid domain into a
+				mesh. Once the domain has been discretized, the Navier-Stokes equations
+				are then solved over the individual cells. These methods can result in
+				very accurate simulations of the fluid behavior, but can require a
+				significant amount of time to converge to a satisfactory result (for
+				example, as a CFD analyst I regularly ran models which would take an
+				entire weekend to converge).
+			</p>
+			<p class="sectionText">
+				In situations where real-time, interactive fluid modelling is required
+				(video games, real-time simulation, etc.), mesh free methods like SPH
+				are seeing frequent use. In mesh free methods, rather than discretizing
+				the domain into a mesh, the fluid itself is discretized into a large set
+				of nodes, whose motion is determined by the interaction between nodes.
+			</p>
+
+			<p class="sectionText">
+				Source code for this project can be found on <a href="#">my GitHub</a>.
+			</p>
+
+			<h2 class="sectionTitle">How does SPH work?</h2>
+			<p class="sectionText">
+				In SPH, scalar quantities like density are computed for each particle as
+				a weighted sum of contributions from other particles. Weighting
+				functions called <i>Smoothing Kernels</i> weight the contribution from
+				each particle. A feature of the smoothing kernel functions is the
+				<i>support length, h</i>, which is the radius surrounding each particle
+				inside which the contributions from other particles are considered. If a
+				particle is at a distance greater than the support length from another
+				particle, no interaction takes place between the two.
+			</p>
+			<p class="sectionText">
+				The general form of the SPH equation used to calculate some scalar
+				quantity at a point <i>r</i> is shown below:
+			</p>
+			<img class="equations" src="./images/sph1.JPG" alt="" />
+
+			<p class="sectionText">
+				Where m<sub>j</sub> is the mass of the j<sup>th</sup> particle, A<sub
+					>j</sub
+				>
+				is the scalar quantity of the j<sup>th</sup> particle, &rho;<sub>j</sub>
+				is the density of the j<sup>th</sup> particle, and W(r - r<sub>j</sub>,
+				h) is the smoothing kernel with support length h.
+			</p>
+
+			<p class="sectionText">
+				Fluid flow is described by the continuity equation, which ensures
+				conservation of mass, and the Navier-Stokes equation which ensure the
+				conservation of momentum. Because we are using a constant number of
+				particles, conservation of mass is automatically satisfied and thus we
+				can ignore the continuity equation. The Navier-Stokes equation for
+				incompressible fluids is shown below:
+			</p>
+
+			<img src="./images/navierStokes.JPG" alt="" class="equations" />
+
+			<p class="sectionText">
+				The right-hand side of the equation contain three forces which influence
+				the behavior of the fluid: pressure force (first term), external forces
+				(second term), and viscosity (third term). Application of the general
+				SPH equation to the density and the pressure and viscosity forces
+				(external forces are just added to each particle) is shown below:
+			</p>
+
+			<h3>Density of i<sup>th</sup> particle</h3>
+			<img src="./images/density.JPG" alt="" class="equations" />
+
+			<h3>Pressure of i<sup>th</sup> particle</h3>
+			<img src="./images/pressurederivation.JPG" alt="" class="equations" />
+
+			<h3>Pressure Force of i<sup>th</sup> particle</h3>
+			<img src="./images/pressure.JPG" alt="" class="equations" />
+
+			<h3>Viscosity Force of i<sup>th</sup> particle</h3>
+			<img src="./images/viscosity.JPG" alt="" class="equations" />
+
+			<p class="sectionText">
+				An additional surface tension force is also added which takes the
+				following form (C<sub>i</sub> is called the <i>color field</i>):
+			</p>
+			<h3>Surface Tension Force of i<sup>th</sup> particle</h3>
+			<img src="./images/surface.JPG" alt="" class="equations" />
+
+			<h2 class="sectionTitle">How is the algorithm implemented?</h2>
+			<p class="sectionText">
+				A general overview of the algorithm is laid out below:
+			</p>
+
+			<ol>
+				<li>
+					<b>Initialization</b> - Particles are initialized with unique id, x,
+					and y locations. A grid object is created which divides the domain
+					into cells that are one support length in width and height. This will
+					be used to quickly find particles which may be within the support
+					length, reducing the number of particles that need to be checked.
+				</li>
+				<li>
+					<b>Update Neighbors</b> - Particles are sorted into the cell they are
+					currently occupying.
+				</li>
+				<li>
+					<b>Update Density and Pressure</b> - The density and pressure of each
+					particle is calculated. These values are used in the following force
+					calculations
+				</li>
+				<li>
+					<b>Update Forces</b> - Force interactions between neighboring
+					particles are calculated. External forces such as gravity are added at
+					this time as well.
+				</li>
+				<li>
+					<b>Update Velocity and Position</b> - Velocity is updated by adding
+					the force acting on the particle times a small time step. The position
+					is then updated in a similar manner using the velocity which was just
+					calculated.
+				</li>
+				<li>
+					<b>Boundary Handling</b> - If the position of any particle is outside
+					the domain after the previous step, the position is adjusted to be one
+					support length inside the domain. The velocity is then mirrored and
+					dampened by a dampening co-efficient.
+				</li>
+				<li>
+					<b>Draw Particles</b> - The canvas is cleared and the particles are
+					drawn at their updated positions.
+				</li>
+				<li><b>Return to Step 2</b> - Return to step 2 and continue.</li>
+			</ol>
+		</div>
+		<script src="./scripts/main.js"></script>
+	</body>
+</html>
